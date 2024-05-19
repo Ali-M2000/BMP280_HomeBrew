@@ -1,0 +1,94 @@
+/*
+BMP280
+Ali.M
+*/
+
+#include <Wire.h>
+
+const uint8_t address = 0x76; //CSB to GND
+//const uint8_t address = 0x77; //CSB to VDD
+
+
+void setup() {
+
+  uint8_t buff[26];
+  int16_t T2,T3,P2,P3,P4,P5,P6,P7,P8,P9;
+  uint16_t T1,P1;
+  int32_t adcT,adcP;
+  double var1,var2,T,P;
+
+  Serial.begin(9600);
+  Wire.begin();
+  while(!Serial);
+
+  delay(1000);
+  Wire.beginTransmission(address);
+  Serial.print("Sensor ACK: ");
+  Serial.println(!Wire.endTransmission()); // 1 if OK
+
+  Wire.beginTransmission(address);
+  Wire.write(0x88); // Calibration parameters
+  Wire.endTransmission();
+  Wire.requestFrom(address,24);
+  if(Wire.available()) {
+    Wire.readBytes(buff,24);
+  }
+  T1=((uint16_t)buff[1] << 8) + ((uint16_t)buff[0]);
+  T2=((uint16_t)buff[3] << 8) + ((uint16_t)buff[2]);
+  T3=((uint16_t)buff[5] << 8) + ((uint16_t)buff[4]);
+  P1=((uint16_t)buff[7] << 8) + ((uint16_t)buff[6]);
+  P2=((uint16_t)buff[9] << 8) + ((uint16_t)buff[8]);
+  P3=((uint16_t)buff[11] << 8) + ((uint16_t)buff[10]);
+  P4=((uint16_t)buff[13] << 8) + ((uint16_t)buff[12]);
+  P5=((uint16_t)buff[15] << 8) + ((uint16_t)buff[14]);
+  P6=((uint16_t)buff[17] << 8) + ((uint16_t)buff[16]);
+  P7=((uint16_t)buff[19] << 8) + ((uint16_t)buff[18]);
+  P8=((uint16_t)buff[21] << 8) + ((uint16_t)buff[20]);
+  P9=((uint16_t)buff[23] << 8) + ((uint16_t)buff[22]);
+
+while(1) {
+
+  delay(800);
+
+  Wire.beginTransmission(address);
+  Wire.write(0xF4); // config register
+  Wire.write(0x55); // forced mode, TOS=2, POS=16
+  Wire.endTransmission();
+  delay(100); // max measurement time
+
+  Wire.beginTransmission(address);
+  Wire.write(0xF7); // trimming parameters
+  Wire.endTransmission();
+  Wire.requestFrom(address,6);
+  if(Wire.available()) {
+    Wire.readBytes(buff,6);
+  }
+
+  adcT=((long)buff[3] << 12)+((long)buff[4] << 4)+((long)buff[5] >> 4);
+  adcP=((long)buff[0] << 12)+((long)buff[1] << 4)+((long)buff[2] >> 4);
+
+  var1=(((double)adcT)/16384.4-((double)T1)/1024.0)*((double)T2);
+  var2=((((double)adcT)/131072.0-((double)T1)/8192.0)*(((double)adcT)/131072.0-((double)T1)/8192.0))*((double)T3);
+  T=var1+var2;
+
+  var1=(T/2.0)-64000.0;
+  var2=var1*var1*((double)P6)/32768.0;
+  var2=var2+var1*((double)P5)*2.0;
+  var2=(var2/4.0)+(((double)P4)*65536.0);
+  var1=(((double)P3)*var1*var1/524288.0+((double)P2)*var1)/524288.0;
+  var1=(1.0+var1/32768.0)*((double)P1);
+  P=1048576.0-((double)adcP);
+  P=(P-(var2/4096.0))*6250.0/var1;
+  var1=((double)P9)*P*P/2147483648.0;
+  var2=P*((double)P8)/32768.0;
+  P=P+(var1+var2+((double)P7))/16.0;
+
+  Serial.print("T= "); Serial.println(T/5120.0);
+  Serial.print("P= "); Serial.println(P);
+}
+}
+
+
+void loop() {
+
+}
