@@ -57,7 +57,7 @@ while(1) {
   delay(100); // max measurement time
 
   Wire.beginTransmission(address);
-  Wire.write(0xF7); // trimming parameters
+  Wire.write(0xF7); // P & T raw data
   Wire.endTransmission();
   Wire.requestFrom(address,6);
   if(Wire.available()) {
